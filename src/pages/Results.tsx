@@ -68,7 +68,8 @@ const Results: React.FC = () => {
       let endpoint = '/results/';
       
       if (user?.role === 'student') {
-        endpoint = `/results/student/${user.id}`;
+        console.log('Fetching results for student:', user["_id"]);
+        endpoint = `/results/student/${user["_id"]}`;
       }
       
       const response = await axios.get(endpoint);
