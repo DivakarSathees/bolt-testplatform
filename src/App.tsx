@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddQuestionsPage from './pages/AddQuestionsPage';
 import Courses from './pages/Courses';
+import CourseDetails from './pages/CourseDetails';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
                       <Route path="/centers" element={<Centers />} />
                       <Route path="/courses" element={<Courses />} />
                       <Route path="/courses/:courseId" element={<Courses />} />
+                      <Route path="/course/:id/details" element={<CourseDetails />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/test/:id/add-questions" element={<AddQuestionsPage />} />
                     </Routes>
