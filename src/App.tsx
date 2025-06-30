@@ -14,6 +14,7 @@ import Centers from './pages/Centers';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddQuestionsPage from './pages/AddQuestionsPage';
+import Courses from './pages/Courses';
 
 function App() {
   return (
@@ -46,6 +47,8 @@ function App() {
                       <Route path="/questions" element={<Questions />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/centers" element={<Centers />} />
+                      <Route path="/courses" element={<Courses />} />
+                      <Route path="/courses/:courseId" element={<Courses />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/test/:id/add-questions" element={<AddQuestionsPage />} />
                     </Routes>

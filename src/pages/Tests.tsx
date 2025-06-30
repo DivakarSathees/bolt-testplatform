@@ -333,11 +333,12 @@ interface Test {
   difficulty: string;
   duration: number;
   totalMarks: number;
-  questions: any[];
+  questions?: any[];
   startDate: string;
   endDate: string;
   createdBy: any;
   createdAt: string;
+  questionCount: number; // Optional for displaying in UI
 }
 
 const Tests: React.FC = () => {
@@ -587,7 +588,7 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Questions:</span>
-                  <span className="flex items-center"><FileText className="h-4 w-4 mr-1" />{test.questions.length}</span>
+                  <span className="flex items-center"><FileText className="h-4 w-4 mr-1" />{test.questionCount}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">

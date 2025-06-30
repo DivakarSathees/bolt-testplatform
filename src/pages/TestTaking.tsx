@@ -14,6 +14,7 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { set } from 'mongoose';
 
 interface Question {
   _id: string;
@@ -37,6 +38,8 @@ interface Test {
     enabled: boolean;
     marks: number;
   };
+  questionCount?: number; // Optional for displaying in UI
+
 }
 
 const TestTaking: React.FC = () => {
@@ -47,6 +50,7 @@ const TestTaking: React.FC = () => {
   const [test, setTest] = useState<Test | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(0);
@@ -59,6 +63,12 @@ const TestTaking: React.FC = () => {
       fetchTest();
     }
   }, [id]);
+
+  useEffect(() => {
+  if (test?.questions?.length) {
+    console.log('test is updated:', test);
+  }
+}, [test]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -96,11 +106,26 @@ const TestTaking: React.FC = () => {
     }
   };
 
-  const startTest = () => {
-    setTestStarted(true);
-    setStartTime(new Date());
-    toast.success('Test started! Good luck!');
-  };
+  const startTest = async () => {
+  setTestStarted(true);
+  setStartTime(new Date());
+  toast.success('Test started! Good luck!');
+
+  try {
+    const response = await axios.get(`/tests/${id}/questions`);
+    const fetchedQuestions = response.data.questions;
+
+    setQuestions(fetchedQuestions); // this updates immediately
+
+    // Update test just for metadata (duration, title, etc.)
+    setTest(prev => prev ? { ...prev, questions: fetchedQuestions } : null);
+  } catch (error: any) {
+    console.error('Failed to start test:', error);
+    toast.error(error.response?.data?.message || 'Failed to start test');
+    setTestStarted(false);
+  }
+};
+
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers(prev => ({
@@ -211,7 +236,7 @@ const TestTaking: React.FC = () => {
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Questions</p>
-              <p className="text-lg font-semibold text-gray-900">{test.questions.length}</p>
+              <p className="text-lg font-semibold text-gray-900">{test?.questions?.length || test?.questionCount}</p>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <Flag className="h-8 w-8 text-purple-600 mx-auto mb-2" />
@@ -261,13 +286,14 @@ const TestTaking: React.FC = () => {
       </div>
     );
   }
+console.log(test);
 
-  const currentQ = test.questions[currentQuestion];
+  // const currentQ = test?.questions?.[currentQuestion];
+  const currentQ = questions[currentQuestion];
 
   return (
 
     <div className="max-w-7xl mx-auto">
-      jsd
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Question Panel */}
         <div className="lg:col-span-3">
@@ -277,7 +303,7 @@ const TestTaking: React.FC = () => {
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{test.title}</h2>
                 <p className="text-sm text-gray-600">
-                  Question {currentQuestion + 1} of {test.questions.length}
+                  Question {currentQuestion + 1} of {test.questions?.length}
                 </p>
               </div>
               <div className="flex items-center space-x-4">
@@ -288,9 +314,9 @@ const TestTaking: React.FC = () => {
                   <span className="font-mono font-semibold">{formatTime(timeLeft)}</span>
                 </div>
                 <button
-                  onClick={() => toggleFlag(currentQ._id)}
+                  onClick={() => toggleFlag(currentQ?._id)}
                   className={`p-2 rounded-lg transition-colors ${
-                    flagged.has(currentQ._id)
+                    flagged.has(currentQ?._id)
                       ? 'bg-yellow-100 text-yellow-800'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
@@ -304,19 +330,19 @@ const TestTaking: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900 flex-1">
-                  {currentQ.question}
+                  {currentQ?.question}
                 </h3>
                 <div className="ml-4 text-sm text-gray-600">
-                  <span className="font-medium">+{currentQ.marks}</span>
+                  <span className="font-medium">+{currentQ?.marks}</span>
                   {test.negativeMarking.enabled && (
-                    <span className="text-red-600 ml-2">-{currentQ.negativeMarks}</span>
+                    <span className="text-red-600 ml-2">-{currentQ?.negativeMarks}</span>
                   )}
                 </div>
               </div>
 
               {/* Options */}
               <div className="space-y-3">
-                {currentQ.options.map((option, index) => {
+                {currentQ?.options.map((option, index) => {
                   const optionLabel = String.fromCharCode(65 + index); // A, B, C, D
                   const isSelected = answers[currentQ._id] === option.text;
                   
@@ -331,10 +357,10 @@ const TestTaking: React.FC = () => {
                     >
                       <input
                         type="radio"
-                        name={`question-${currentQ._id}`}
+                        name={`question-${currentQ?._id}`}
                         value={option.text}
                         checked={isSelected}
-                        onChange={(e) => handleAnswerChange(currentQ._id, e.target.value)}
+                        onChange={(e) => handleAnswerChange(currentQ?._id, e.target.value)}
                         className="sr-only"
                       />
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
@@ -365,13 +391,13 @@ const TestTaking: React.FC = () => {
               
               <div className="flex space-x-3">
                 <button
-                  onClick={() => handleAnswerChange(currentQ._id, '')}
+                  onClick={() => handleAnswerChange(currentQ?._id, '')}
                   className="btn btn-secondary"
                 >
                   Clear Response
                 </button>
                 
-                {currentQuestion === test.questions.length - 1 ? (
+                {currentQuestion === test?.questions?.length - 1 ? (
                   <button
                     onClick={() => handleSubmitTest()}
                     disabled={submitting}
@@ -409,7 +435,7 @@ const TestTaking: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Question Palette</h3>
             
             <div className="grid grid-cols-5 gap-2 mb-4">
-              {test.questions.map((question, index) => {
+              {questions.map((question, index) => {
                 const status = getQuestionStatus(question._id);
                 const isCurrent = index === currentQuestion;
                 
@@ -469,7 +495,7 @@ const TestTaking: React.FC = () => {
                 <div className="flex justify-between">
                   <span>Not Answered:</span>
                   <span className="font-medium text-gray-600">
-                    {test.questions.length - Object.keys(answers).length}
+                    {test.questions?.length - Object.keys(answers).length}
                   </span>
                 </div>
               </div>

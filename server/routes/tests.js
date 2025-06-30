@@ -7,7 +7,51 @@ const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all tests
+// router.get('/', auth, async (req, res) => {
+//   try {
+//     const { type, subject, page = 1, limit = 10 } = req.query;
+//     const query = { isActive: true };
+
+//     if (type) query.type = type;
+//     if (subject) query.subject = subject;
+//     console.log(req.user.role, 'User role checking for test access');
+
+    
+
+//     // Students can only see tests for their centers
+//     if (req.user.role === 'student') {
+//       console.log(`User center: ${req.user.center}`);
+//       query.allowedCenters = req.user.center;
+//       query.startDate = { $lte: new Date() };
+//       query.endDate = { $gte: new Date() };
+//     }
+// console.log(query);
+
+//     const tests = await Test.find(query)
+//       .populate('createdBy', 'name')
+//       .select('-questions')
+//       // populat questions count
+//       // .populate('questions')
+//       .limit(limit * 1)
+//       .skip((page - 1) * limit)
+//       .sort({ createdAt: -1 });
+
+//     const total = await Test.countDocuments(query);
+
+//     res.json({
+//       tests,
+//       totalPages: Math.ceil(total / limit),
+//       currentPage: page,
+//       total
+//     });
+//   } catch (error) {
+//     console.error('Get tests error:', error);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+
+// Get test by ID
+
 router.get('/', auth, async (req, res) => {
   try {
     const { type, subject, page = 1, limit = 10 } = req.query;
@@ -15,32 +59,42 @@ router.get('/', auth, async (req, res) => {
 
     if (type) query.type = type;
     if (subject) query.subject = subject;
-    console.log(req.user.role, 'User role checking for test access');
 
-    
-
-    // Students can only see tests for their centers
     if (req.user.role === 'student') {
-      console.log(`User center: ${req.user.center}`);
       query.allowedCenters = req.user.center;
       query.startDate = { $lte: new Date() };
       query.endDate = { $gte: new Date() };
     }
-console.log(query);
 
-    const tests = await Test.find(query)
+    // Fetch all fields except questions
+    const testsRaw = await Test.find(query)
       .populate('createdBy', 'name')
-      .populate('questions')
+      .select('-questions') // ✅ Only exclude questions
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Count questions without returning them
+    const tests = await Promise.all(
+      testsRaw.map(async (test) => {
+        const questionCount = await Test.aggregate([
+          { $match: { _id: test._id } },
+          { $project: { count: { $size: '$questions' } } }
+        ]);
+        return {
+          ...test,
+          questionCount: questionCount[0]?.count || 0
+        };
+      })
+    );
 
     const total = await Test.countDocuments(query);
 
     res.json({
       tests,
       totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      currentPage: parseInt(page),
       total
     });
   } catch (error) {
@@ -49,7 +103,7 @@ console.log(query);
   }
 });
 
-// Get test by ID
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const test = await Test.findById(req.params.id)
@@ -81,6 +135,28 @@ router.get('/:id', auth, async (req, res) => {
       if (now < test.startDate || now > test.endDate) {
         return res.status(403).json({ message: 'Test is not available at this time' });
       }
+      const safeTest = {
+        _id: test._id,
+        title: test.title,
+        description: test.description,
+        type: test.type,
+        subject: test.subject,
+        difficulty: test.difficulty,
+        duration: test.duration,
+        totalMarks: test.totalMarks,
+        startDate: test.startDate,
+        endDate: test.endDate,
+        createdBy: test.createdBy,
+        allowedCenters: test.allowedCenters,
+        questionCount: test.questions?.length || 0, // ✅ only send count
+        instructions: test.instructions, // ✅ include instructions
+        negativeMarking: test.negativeMarking,
+        createdAt: test.createdAt,
+        
+        // ❌ exclude full question details
+      };
+
+      return res.json({ test: safeTest });
     }
 
     res.json({ test });
@@ -184,6 +260,22 @@ router.delete('/:id', auth, authorize('contentadmin', 'superadmin'), async (req,
     res.json({ message: 'Test deleted successfully' });
   } catch (error) {
     console.error('Delete test error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// get the tests questions
+router.get('/:id/questions', auth, async (req, res) => {
+  try {
+    const test = await Test.findById(req.params.id).populate('questions');
+    
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    res.json({ questions: test.questions });
+  } catch (error) {
+    console.error('Get test questions error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
