@@ -35,10 +35,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },
     { name: 'Tests', href: '/tests', icon: FileText, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },
     { name: 'Questions', href: '/questions', icon: HelpCircle, roles: ['superadmin', 'contentadmin', 'trainer'] },
+    { name: 'QuestionSet', href: '/questionsets', icon: BookOpen, roles: ['superadmin', 'contentadmin', 'trainer'] },
     { name: 'Results', href: '/results', icon: BarChart3, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },
     { name: 'Users', href: '/users', icon: Users, roles: ['superadmin', 'centeradmin'] },
     { name: 'Centers', href: '/centers', icon: Building2, roles: ['superadmin', 'centeradmin'] },
     { name: 'Courses', href: '/courses', icon: Trophy, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },
+    { name: 'Exams', href: '/exams', icon: FileText, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },
   ];
 
   const filteredNavigation = navigation.filter(item => 

@@ -56,14 +56,14 @@ const Dashboard: React.FC = () => {
       let dashboardData: DashboardStats = {};
       
       if (['superadmin', 'centeradmin'].includes(user?.role || '')) {
-        dashboardData.totalUsers = responses[0].data.total;
-        dashboardData.totalTests = responses[1].data.total;
-        dashboardData.recentTests = responses[1].data.tests;
-        dashboardData.recentResults = responses[2].data.results;
+        dashboardData.totalUsers = responses[0]?.data.total;
+        dashboardData.totalTests = responses[1]?.data.total;
+        dashboardData.recentTests = responses[1]?.data.tests;
+        dashboardData.recentResults = responses[2]?.data.results;
       } else {
-        dashboardData.totalTests = responses[0].data.total;
-        dashboardData.recentTests = responses[0].data.tests;
-        dashboardData.recentResults = responses[1].data.results;
+        dashboardData.totalTests = responses[0]?.data.total;
+        dashboardData.recentTests = responses[0]?.data.tests;
+        dashboardData.recentResults = responses[1]?.data.results;
       }
       
       setStats(dashboardData);

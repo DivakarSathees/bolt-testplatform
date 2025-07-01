@@ -13,26 +13,47 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useLocation } from 'react-router-dom';
 
 interface Question {
   _id: string;
   question: string;
-  type: string;
-  subject: string;
-  topic: string;
-  difficulty: string;
+  type: 'MCQ' | 'Numerical' | 'True/False';
   options: Array<{ text: string; isCorrect: boolean }>;
+  subject: string;
+  chapter: string;
   correctAnswer: string;
   explanation: string;
   marks: number;
   negativeMarks: number;
+  image?: string;
   tags: string[];
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  questionSetId: string;
+  isActive: boolean;
   createdBy: any;
   createdAt: string;
 }
 
 const Questions: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  // navigate('/questions', {
+  //       state: {
+  //           examId: qs.examId,
+  //           examName,
+  //           subjectId: qs.subjectId,
+  //           subjectName,
+  //           chapterId: qs.chapterId,
+  //           chapterName,
+  //           questionSetId: qs._id,
+  //           questionSetName
+  //       }
+  //   });
+  // based on the state, we can extract examId, examName, subjectId, subjectName, chapterId, chapterName, questionSetId, questionSetName
+  // If you
+  // const { examId, subjectId, chapterId, questionSetId } = location.state || {};
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,11 +62,22 @@ const Questions: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
+//   const [examId, setExamId] = useState('');
+// const [subjectId, setSubjectId] = useState('');
+// const [chapterId, setChapterId] = useState('');
+// const [questionSetId, setQuestionSetId] = useState('');
+  const [examName, setExamName] = useState('');
+  const [subjectName, setSubjectName] = useState('');
+  const [chapterName, setChapterName] = useState('');
+  const [questionSetId, setQuestionSetId] = useState('');
+
+
   const [formData, setFormData] = useState({
     question: '',
     type: 'MCQ',
-    subject: 'Physics',
-    topic: '',
+    subject: subjectName || 'Physics',
+    chapter: chapterName || '',
+    // topic: '',
     difficulty: 'Medium',
     options: [
       { text: '', isCorrect: false },
@@ -61,6 +93,19 @@ const Questions: React.FC = () => {
   });
 
   useEffect(() => {
+  const saved = localStorage.getItem('questionMeta');
+  if (saved) {
+    const { examName, subjectName, chapterName, questionSetId } = JSON.parse(saved);
+    setExamName(examName);
+    setSubjectName(subjectName);
+    setChapterName(chapterName);
+    setQuestionSetId(questionSetId);
+  }
+}, []);
+
+
+  useEffect(() => {
+    
     fetchQuestions();
   }, [filterSubject, filterDifficulty]);
 
@@ -91,7 +136,8 @@ const Questions: React.FC = () => {
         options: formData.options.map(option => ({
           ...option,
           isCorrect: option.text === formData.correctAnswer
-        }))
+        })),
+        questionSetId
       };
 
       if (editingQuestion) {
@@ -118,7 +164,7 @@ const Questions: React.FC = () => {
       question: question.question,
       type: question.type,
       subject: question.subject,
-      topic: question.topic,
+      chapter: question.chapter || '',
       difficulty: question.difficulty,
       options: question.options,
       correctAnswer: question.correctAnswer,
@@ -132,7 +178,6 @@ const Questions: React.FC = () => {
 
   const handleDelete = async (questionId: string) => {
     if (!window.confirm('Are you sure you want to delete this question?')) return;
-    
     try {
       await axios.delete(`/questions/${questionId}`);
       toast.success('Question deleted successfully');
@@ -148,7 +193,7 @@ const Questions: React.FC = () => {
       question: '',
       type: 'MCQ',
       subject: 'Physics',
-      topic: '',
+      chapter: '',
       difficulty: 'Medium',
       options: [
         { text: '', isCorrect: false },
@@ -172,16 +217,14 @@ const Questions: React.FC = () => {
 
   const filteredQuestions = questions.filter(question =>
     question.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    question.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    question.chapter.toLowerCase().includes(searchTerm.toLowerCase()) ||
     question.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const canCreateQuestion = ['superadmin', 'contentadmin', 'trainer'].includes(user?.role || '');
   const canEditQuestion = ['superadmin', 'contentadmin'].includes(user?.role || '');
 
-  if (loading) {
-    return <LoadingSpinner text="Loading questions..." />;
-  }
+  if (loading) return <LoadingSpinner text="Loading questions..." />;
 
   return (
     <div className="space-y-6 fade-in">
@@ -190,6 +233,13 @@ const Questions: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Question Bank</h1>
           <p className="text-gray-600 mt-1">Manage questions for tests</p>
         </div>
+         <div className="flex items-center space-x-4">
+    <button
+      onClick={() => window.history.back()}
+      className="btn btn-secondary"
+    >
+      ⬅ Back
+    </button>
         {canCreateQuestion && (
           <button
             onClick={() => {
@@ -203,6 +253,7 @@ const Questions: React.FC = () => {
             Add Question
           </button>
         )}
+      </div>
       </div>
 
       {/* Filters */}
@@ -269,7 +320,7 @@ const Questions: React.FC = () => {
                     question.subject === 'Mathematics' ? 'bg-purple-100 text-purple-800' :
                     'bg-pink-100 text-pink-800'
                   }`}>
-                    {question.subject}
+                    {subjectName || question.subject}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     question.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
@@ -280,7 +331,7 @@ const Questions: React.FC = () => {
                   </span>
                   <span className="text-sm text-gray-600">
                     <BookOpen className="h-4 w-4 inline mr-1" />
-                    {question.topic}
+                    {chapterName}
                   </span>
                 </div>
 
@@ -373,7 +424,7 @@ const Questions: React.FC = () => {
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">
-                {editingQuestion ? 'Edit Question' : 'Create New Question'}
+                {editingQuestion ? 'Edit Question' : `Create New Question for ${examName || 'Exam'}`}
               </h3>
               <button
                 onClick={() => {
@@ -389,20 +440,42 @@ const Questions: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* Type Selector */}
+
+              <div>
+                <label className="label">Type</label>
+                <select
+                  className="input"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                >
+                  <option value="MCQ">MCQ</option>
+                  <option value="Numerical">Numerical</option>
+                  <option value="True/False">True/False</option>
+                </select>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="label">Subject</label>
-                  <select
+                   <input
+                    type="text"
+                    className="input"
+                    value={subjectName}
+                    onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
+                    readOnly
+                  />
+                  {/* <select
                     className="input"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     required
+                    aria-readonly
                   >
                     <option value="Physics">Physics</option>
                     <option value="Chemistry">Chemistry</option>
                     <option value="Mathematics">Mathematics</option>
                     <option value="Biology">Biology</option>
-                  </select>
+                  </select> */}
                 </div>
 
                 <div>
@@ -420,13 +493,13 @@ const Questions: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="label">Topic</label>
+                  <label className="label">Chapter</label>
                   <input
                     type="text"
                     className="input"
-                    value={formData.topic}
-                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                    required
+                    value={chapterName}
+                    onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
+                    readOnly
                   />
                 </div>
               </div>
@@ -440,6 +513,27 @@ const Questions: React.FC = () => {
                   required
                 />
               </div>
+
+              {/* Conditionally render options */}
+              {formData.type === 'True/False' ? (
+                <div>
+                  <label className="label">Select Correct Answer</label>
+                  <div className="flex space-x-4">
+                    {['True', 'False'].map((val) => (
+                      <label key={val} className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="tf"
+                          value={val}
+                          checked={formData.correctAnswer === val}
+                          onChange={() => setFormData({ ...formData, correctAnswer: val })}
+                        />
+                        <span>{val}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
 
               <div>
                 <label className="label">Options</label>
@@ -472,6 +566,7 @@ const Questions: React.FC = () => {
                   Select the radio button next to the correct answer
                 </p>
               </div>
+               )}
 
               <div>
                 <label className="label">Explanation (Optional)</label>
