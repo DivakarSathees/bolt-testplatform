@@ -38,22 +38,7 @@ interface Question {
 const Questions: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
-  // navigate('/questions', {
-  //       state: {
-  //           examId: qs.examId,
-  //           examName,
-  //           subjectId: qs.subjectId,
-  //           subjectName,
-  //           chapterId: qs.chapterId,
-  //           chapterName,
-  //           questionSetId: qs._id,
-  //           questionSetName
-  //       }
-  //   });
-  // based on the state, we can extract examId, examName, subjectId, subjectName, chapterId, chapterName, questionSetId, questionSetName
-  // If you
-  // const { examId, subjectId, chapterId, questionSetId } = location.state || {};
-
+  
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,10 +47,6 @@ const Questions: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
-//   const [examId, setExamId] = useState('');
-// const [subjectId, setSubjectId] = useState('');
-// const [chapterId, setChapterId] = useState('');
-// const [questionSetId, setQuestionSetId] = useState('');
   const [examName, setExamName] = useState('');
   const [subjectName, setSubjectName] = useState('');
   const [chapterName, setChapterName] = useState('');
@@ -82,8 +63,8 @@ const Questions: React.FC = () => {
     options: [
       { text: '', isCorrect: false },
       { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false }
+      // { text: '', isCorrect: false },
+      // { text: '', isCorrect: false }
     ],
     correctAnswer: '',
     explanation: '',
@@ -107,7 +88,7 @@ const Questions: React.FC = () => {
   useEffect(() => {
     
     fetchQuestions();
-  }, [filterSubject, filterDifficulty]);
+  }, [filterSubject, filterDifficulty, questionSetId]);
 
   const fetchQuestions = async () => {
     try {
@@ -115,12 +96,13 @@ const Questions: React.FC = () => {
       const params = new URLSearchParams();
       if (filterSubject) params.append('subject', filterSubject);
       if (filterDifficulty) params.append('difficulty', filterDifficulty);
+      // pass qestionssetid to enpoint
       
-      const response = await axios.get(`/questions?${params.toString()}`);
+      const response = await axios.get(`/questions/set/${questionSetId}`);
       setQuestions(response.data.questions);
     } catch (error) {
       console.error('Failed to fetch questions:', error);
-      toast.error('Failed to load questions');
+      // toast.error('Failed to load questions');
     } finally {
       setLoading(false);
     }
@@ -139,6 +121,7 @@ const Questions: React.FC = () => {
         })),
         questionSetId
       };
+
 
       if (editingQuestion) {
         await axios.put(`/questions/${editingQuestion._id}`, questionData);
@@ -198,8 +181,8 @@ const Questions: React.FC = () => {
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false }
+        // { text: '', isCorrect: false },
+        // { text: '', isCorrect: false }
       ],
       correctAnswer: '',
       explanation: '',
@@ -208,6 +191,30 @@ const Questions: React.FC = () => {
       tags: ''
     });
   };
+
+  const addOption = () => {
+  setFormData(prev => ({
+    ...prev,
+    options: [...prev.options, { text: '', isCorrect: false }]
+  }));
+
+};
+
+const removeOption = (index: number) => {
+  const newOptions = [...formData.options];
+  newOptions.splice(index, 1);
+  setFormData({
+    ...formData,
+    options: newOptions,
+    // Reset correct answer if it was the one removed
+    correctAnswer:
+      formData.correctAnswer === formData.options[index].text
+        ? ''
+        : formData.correctAnswer
+  });
+};
+
+
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...formData.options];
@@ -235,7 +242,10 @@ const Questions: React.FC = () => {
         </div>
          <div className="flex items-center space-x-4">
     <button
-      onClick={() => window.history.back()}
+      onClick={() => {
+        window.history.back()
+        localStorage.removeItem('questionMeta');
+      }}
       className="btn btn-secondary"
     >
       ⬅ Back
@@ -309,6 +319,10 @@ const Questions: React.FC = () => {
 
       {/* Questions List */}
       <div className="space-y-4">
+        {/* total question count from res */}
+        <div className="text-sm text-gray-600">
+          Total Questions: {filteredQuestions.length}
+        </div>
         {filteredQuestions.map((question) => (
           <div key={question._id} className="card p-6">
             <div className="flex items-start justify-between">
@@ -526,7 +540,12 @@ const Questions: React.FC = () => {
                           name="tf"
                           value={val}
                           checked={formData.correctAnswer === val}
-                          onChange={() => setFormData({ ...formData, correctAnswer: val })}
+                          onChange={() => setFormData({ ...formData, correctAnswer: val,
+                            options: [
+                                { text: 'True', isCorrect: val === 'True' },
+                                { text: 'False', isCorrect: val === 'False' }
+                              ]
+                           })}
                         />
                         <span>{val}</span>
                       </label>
@@ -538,7 +557,7 @@ const Questions: React.FC = () => {
               <div>
                 <label className="label">Options</label>
                 <div className="space-y-3">
-                  {formData.options.map((option, index) => (
+                  {/* {formData.options.map((option, index) => (
                     <div key={index} className="flex items-center space-x-3">
                       <span className="font-medium text-gray-700 w-8">
                         {String.fromCharCode(65 + index)}.
@@ -560,7 +579,65 @@ const Questions: React.FC = () => {
                         className="w-4 h-4 text-primary-600"
                       />
                     </div>
+                  ))} */}
+
+                  {formData.options.map((option, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <span className="font-medium text-gray-700 w-8">
+                        {String.fromCharCode(65 + index)}.
+                      </span>
+                      <input
+                        type="text"
+                        className="input flex-1"
+                        value={option.text}
+                        onChange={(e) => handleOptionChange(index, e.target.value)}
+                        placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                        required
+                      />
+                      <input
+                        type="radio"
+                        name="correctAnswer"
+                        value={option.text}
+                        checked={formData.correctAnswer === option.text}
+                        onChange={(e) =>
+                          setFormData({ ...formData, correctAnswer: e.target.value })
+                        }
+                        className="w-4 h-4 text-primary-600"
+                      />
+                      {formData.options.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeOption(index)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Remove Option"
+                        >
+                          ×
+                        </button>
+                      )}
+                      {/* {index === formData.options.length - 1  && (
+                        <button
+                          type="button"
+                          onClick={addOption}
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Add Option"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      )} */}
+                    </div>
                   ))}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                          type="button"
+                          onClick={addOption}
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Add Option"
+                          style={{ display: 'ruby' }}
+                        >
+                          <Plus className="h-4 w-4" /> Add Option
+                        </button>
+                        </div>
+
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
                   Select the radio button next to the correct answer

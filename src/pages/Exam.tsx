@@ -274,7 +274,8 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Plus, Edit, BookOpen, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { set } from 'mongoose';
 
 // Define types for Exam, Subject, and Chapter
 type Chapter = {
@@ -297,6 +298,7 @@ type Exam = {
 
 const ExamManager = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [showExamModal, setShowExamModal] = useState(false);
@@ -309,13 +311,34 @@ const ExamManager = () => {
   const [qsExamId, setQsExamId] = useState('');
   const [qsSubjectId, setQsSubjectId] = useState('');
   const [qsChapterId, setQsChapterId] = useState('');
-
+  const [institutes, setInstitutes] = useState([]);
+  const [instituteId, setInstituteId] = useState<string | null>(null);
+  const [questionSet, setQuestionSet] = useState<any>(null);
   const [qsTitle, setQsTitle] = useState('');
   const [qsDescription, setQsDescription] = useState('');
 
   useEffect(() => {
+    // check in localstorage by getting that user key has json string of user with instituteId is null or not
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      if (user.instituteId) {
+        setInstituteId(user.instituteId);
+      }
+    }
     fetchExams();
+    fetchInstitutes();
   }, []);
+
+  const fetchInstitutes = async () => {
+    try {
+      const res = await axios.get('/centers');
+      setInstitutes(res.data.centers);
+      // Handle institutes if needed
+    } catch (err) {
+      toast.error('Failed to load institutes');
+    }
+  };
 
   const fetchExams = async () => {
     try {
@@ -381,24 +404,62 @@ const ExamManager = () => {
   };
 
   const handleCreateQuestionSet = async () => {
-    if (!qsTitle.trim() || !qsDescription.trim()) return;
+    if (!qsTitle.trim()) return;
     try {
-      await axios.post('/questionset/create', {
+      const res = await axios.post('/questionset/create', {
         name: qsTitle,
         description: qsDescription,
         examId: qsExamId,
         subjectId: qsSubjectId,
         chapterId: qsChapterId,
-        createdBy: user?.id
+        createdBy: user?.id,
+        instituteId: instituteId || (user?.['instituteId'] ? [user['instituteId']] : [])
       });
+
+       const createdQsId = res.data.questionSetId;
+
       toast.success('Question Set created');
       setShowQuestionSetModal(false);
       setQsTitle('');
       setQsDescription('');
+
+      // Prepare and save metadata in localStorage
+    const examName = getExamName(qsExamId);
+    const subjectName = getSubjectName(qsExamId, qsSubjectId);
+    const chapterName = getChapterName(qsExamId, qsSubjectId, qsChapterId);
+    const questionSetId = createdQsId;
+
+    localStorage.setItem(
+      'questionMeta',
+      JSON.stringify({ examName, subjectName, chapterName, questionSetId })
+    );
+
+    // Navigate to /questions
+    navigate('/questions');
     } catch (err) {
       toast.error('Failed to create question set');
     }
   };
+
+  const fetchQuestionSetsByChapter = async (chapterId: string) => {
+    try {
+      const res = await axios.get(`/questionSets/chapter/${chapterId}`);
+      if (res.data.length === 0) {
+        setQuestionSet(null);
+        toast.error('No question sets found for this chapter');
+      } else {
+        setQuestionSet(res.data);
+        // You can handle the fetched question sets here if needed
+      }
+    } catch (err) {
+      toast.error('Failed to fetch question sets');
+    }
+  };
+
+    const getExamName = (id: string) => exams.find(e => e._id === id)?.name || id;
+  const getSubjectName = (eid: string, sid: string) => exams.find(e => e._id === eid)?.subjects.find(s => s._id === sid)?.name || sid;
+  const getChapterName = (eid: string, sid: string, cid: string) => exams.find(e => e._id === eid)?.subjects.find(s => s._id === sid)?.chapters.find(c => c._id === cid)?.name || cid;
+
 
   const refreshSelectedExam = async () => {
     try {
@@ -413,6 +474,7 @@ const ExamManager = () => {
   };
 
   const openQuestionSetModal = (examId: string, subjectId: string, chapterId: string) => {
+    fetchQuestionSetsByChapter(chapterId);
     setQsExamId(examId);
     setQsSubjectId(subjectId);
     setQsChapterId(chapterId);
@@ -505,11 +567,19 @@ const ExamManager = () => {
                 <div key={subj._id} className="mb-4">
                   <h3 className="font-semibold text-md text-blue-700">{subj.name}</h3>
                   <ul className="list-disc ml-5 text-sm text-gray-700">
-                    {subj.chapters.map((chap) => (
+                    {canManage && subj.chapters.map((chap) => (
                       <li
                         key={chap._id}
                         className="cursor-pointer hover:text-blue-600"
                         onClick={() => openQuestionSetModal(selectedExam._id, subj._id, chap._id)}
+                      >
+                        {chap.name}
+                      </li>
+                    ))}
+                    {canView && subj.chapters.map((chap) => (
+                      <li
+                        key={chap._id}
+                        className="cursor-pointer hover:text-blue-600"
                       >
                         {chap.name}
                       </li>
@@ -582,29 +652,78 @@ const ExamManager = () => {
               }}
               className="space-y-4"
             >
+              {/* include subject name in this modal */}
               <div>
-                <label className="block text-sm font-medium">Title</label>
+                {/* <label className="block text-sm font-medium">Exam</label> */}
+                <span style={{ display: 'flex', justifyContent: 'space-between'}}>
+                  {qsExamId ? selectedExam?.name : 'Select an exam'} &rarr; {/*include arrow*/} 
+                  {qsSubjectId ? selectedExam?.subjects.find(s => s._id === qsSubjectId)?.name : 'Select a subject'} &rarr; 
+                  {qsChapterId ? selectedExam?.subjects.find(s => s.chapters.some(c => c._id === qsChapterId))?.chapters.find(c => c._id === qsChapterId)?.name : 'Select a chapter'}
+                </span>
+              </div>
+              <div>
+                {/* <label className="block text-sm font-medium">Question Set Name</label> */}
                 <input
                   className="input w-full"
-                  placeholder="Question set title"
+                  placeholder="Question set Name"
                   value={qsTitle}
                   onChange={(e) => setQsTitle(e.target.value)}
                 />
               </div>
+              {/* display all institude with dropdown if institude id is null else display readonly input with institude name */}
               <div>
-                <label className="block text-sm font-medium">Description</label>
-                <textarea
-                  className="input w-full"
-                  placeholder="Question set description"
-                  value={qsDescription}
-                  onChange={(e) => setQsDescription(e.target.value)}
-                />
+                <label className="block text-sm font-medium">Institute</label>
+                {instituteId ? (
+                  <input
+                    className="input w-full"
+                    value={institutes.find(i => i['_id'] === instituteId)?.['name'] || 'Unknown Institute'}
+                    readOnly
+                  />
+                ) : (
+                  <select
+                    className="input w-full"
+                    value={instituteId || ''}
+                    onChange={(e) => setInstituteId(e.target.value)}
+                  >
+                    <option value="">Select Institute</option>
+                    {institutes.map((inst) => (
+                      <option key={inst['_id']} value={inst['_id']}>
+                        {inst['name']}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
+            
               <div className="flex justify-end gap-2">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowQuestionSetModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create</button>
+                <button type="submit" className="btn btn-primary" onClick={() => setQuestionSet(null)}>Create</button>
               </div>
             </form>
+             {/* display questionsets & onclicking the questionset navigate to /questions */}
+            {questionSet && questionSet.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-2">Existing Question Sets</h3>
+                <ul className="list-disc ml-5 space-y-1">
+                  {questionSet.map((qs: any) => (
+                    <li key={qs._id} className="cursor-pointer hover:text-blue-600" onClick={() => {
+                      setQuestionSet(null);
+                      // fetchQuestionSetsByChapter(qs.chapterId);
+                      localStorage.setItem('questionMeta', JSON.stringify({
+                        examName: getExamName(qsExamId),
+                        subjectName: getSubjectName(qsExamId, qsSubjectId),
+                        chapterName: getChapterName(qsExamId, qsSubjectId, qsChapterId),
+                        questionSetId: qs._id
+                      }));
+                      navigate('/questions?questionSetId=' + qs._id);
+                    }}>
+                      {qs.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+              
           </div>
         </div>
       )}

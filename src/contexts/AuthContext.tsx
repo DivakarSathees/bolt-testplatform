@@ -280,6 +280,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRefreshToken(null);
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('accessToken');
+    // clear all local storage
+    localStorage.clear();
     delete axios.defaults.headers.common['Authorization'];
     toast.success('Logged out');
   };

@@ -38,7 +38,8 @@ function AppContent() {
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/test/:id" element={<TestTaking />} />
                 <Route path="/results" element={<Results />} />
-                <Route path="/questions" element={<Questions />} />
+                {/* Admin-only routes */}
+                <Route path="/questions" element={<ProtectedRoute roles={['superadmin', 'contentadmin']}> <Questions /> </ProtectedRoute> } />
                 {/* <Route path="/questions/:examId/:subjectId/:chapterId" element={<Questions />} /> */}
                 <Route path="/questionsets" element={<QuestionSetComponent />} />
                 <Route path="/users" element={<Users />} />

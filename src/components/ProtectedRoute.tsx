@@ -24,6 +24,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
+  
+
 
   return <>{children}</>;
 };
