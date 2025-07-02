@@ -571,7 +571,10 @@ const ExamManager = () => {
                       <li
                         key={chap._id}
                         className="cursor-pointer hover:text-blue-600"
-                        onClick={() => openQuestionSetModal(selectedExam._id, subj._id, chap._id)}
+                        onClick={() => {
+                          setQuestionSet(null)
+                          openQuestionSetModal(selectedExam._id, subj._id, chap._id)}
+                        }
                       >
                         {chap.name}
                       </li>

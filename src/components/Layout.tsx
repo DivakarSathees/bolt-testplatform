@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -30,6 +30,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     logout();
     navigate('/login');
   };
+
+  useEffect(() => {
+  const unlisten = () => {
+    const currentPath = location.pathname;
+    // If the path is not /questions, clear the questionMeta
+    if (!currentPath.startsWith('/questions')) {
+      localStorage.removeItem('questionMeta');
+    }
+  };
+
+  // run once when component unmounts or route changes
+  return unlisten;
+}, [location.pathname]);
+
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'contentadmin', 'trainer', 'student', 'centeradmin'] },

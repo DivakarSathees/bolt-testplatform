@@ -13,7 +13,7 @@ import {
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Question {
   _id: string;
@@ -38,6 +38,7 @@ interface Question {
 const Questions: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,14 +75,38 @@ const Questions: React.FC = () => {
   });
 
   useEffect(() => {
+  // This will run every time the route changes
+  console.log('Current pathname:', location.pathname);
+  
+  if (!location.pathname.startsWith('/questions')) {
+    localStorage.removeItem('questionMeta');
+  }
+}, [location.pathname]);
+
+
+  useEffect(() => {
   const saved = localStorage.getItem('questionMeta');
   if (saved) {
     const { examName, subjectName, chapterName, questionSetId } = JSON.parse(saved);
+    // if questionSetId is not there then navigate to /exam
+    if (!questionSetId) {
+      navigate('/questionsets');
+      return;
+    }
+    console.log('saved questionMeta:', examName, subjectName, chapterName, questionSetId);
+    
     setExamName(examName);
     setSubjectName(subjectName);
     setChapterName(chapterName);
     setQuestionSetId(questionSetId);
+  } else {
+    // if questionSetId is not there then navigate to /exam
+    navigate('/questionsets');
+    return;
   }
+   // if questionsetid in not there in localstorage then navigate to /exam
+
+  
 }, []);
 
 
