@@ -19,6 +19,7 @@ import CourseDetails from './pages/CourseDetails';
 import LoadingSpinner from './components/LoadingSpinner'; // ⬅️ Optional spinner while loading
 import Exams from './pages/Exam';
 import QuestionSetComponent from './pages/QuestionSet';
+import SelectQuestionSetsPage from './pages/SelectQuestionSetsPage';
 
 // ⬇️ This separates the route logic and blocks it while auth is still loading
 function AppContent() {
@@ -50,6 +51,7 @@ function AppContent() {
                 <Route path="/course/:id/details" element={<CourseDetails />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/test/:id/add-questions" element={<AddQuestionsPage />} />
+                <Route path="/test/:id/select-sets" element={<SelectQuestionSetsPage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

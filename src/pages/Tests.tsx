@@ -57,6 +57,9 @@ const Tests: React.FC = () => {
   const [filterSubject, setFilterSubject] = useState('');
   const [exams, setExams] = useState<Exam[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+const [editingTestId, setEditingTestId] = useState<string | null>(null);
+
 
   const [formData, setFormData] = useState({
     name: '',
@@ -74,11 +77,21 @@ const Tests: React.FC = () => {
   });
 const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: string }[]>([]);
 
-  useEffect(() => {
-    fetchTests();
-      fetchCenters(); // fetch centers too
+  // useEffect(() => {
+  //   fetchTests();
+  //     fetchCenters(); // fetch centers too
 
-  }, [filterType, filterSubject]);
+  // }, [filterType, filterSubject]);
+  // For one-time center fetch
+useEffect(() => {
+  fetchCenters();
+}, []);
+
+// For test filtering
+useEffect(() => {
+  fetchTests();
+}, [filterType, filterSubject]);
+
 
   const fetchCenters = async () => {
   try {
@@ -113,7 +126,7 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
     if (!window.confirm('Are you sure you want to delete this test?')) return;
 
     try {
-      await axios.delete(`/tests/${testId}`);
+      await axios.put(`test/update/${testId}`, {isActive: false});
       toast.success('Test deleted successfully');
       fetchTests();
     } catch (error) {
@@ -202,10 +215,65 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
     });
 
     // Navigate to add questions
-    navigate(`/test/${newTestId}/add-questions`);
+    navigate(`/test/${newTestId}/select-sets`);
+    // navigate(`/test/${newTestId}/add-questions`);
   } catch (error) {
     console.error('Create test failed:', error);
     toast.error('Failed to create test');
+  }
+
+};
+const resetForm = () => {
+  setFormData({
+    name: '',
+    examName: 'JEE',
+    subject: 'Physics',
+    difficulty: 'Medium',
+    duration: 60,
+    examId: '',
+    subjectId: '',
+    allowedCenters: []
+  });
+};
+
+
+const handleSubmitTest = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    const payload = {
+      name: formData.name,
+      examName: formData.examName,
+      subject: formData.subject,
+      difficulty: formData.difficulty,
+      duration: formData.duration,
+      examId: formData.examId,
+      subjectId: formData.subjectId,
+      allowedCenters: formData.allowedCenters || [],
+    };
+
+    if (isEditing && editingTestId) {
+      // PUT request for update
+      await axios.put(`/test/update/${editingTestId}`, payload);
+      toast.success('Test updated successfully');
+      setEditingTestId(null);
+    } else {
+      // POST request for create
+      const response = await axios.post('/tests', payload);
+      const newTestId = response.data.test._id;
+      toast.success('Test created successfully');
+      setShowCreateModal(false);
+      resetForm();
+      navigate(`/test/${newTestId}/select-sets`);
+      return;
+    }
+
+    setShowCreateModal(false);
+    fetchTests(); // Refresh list
+    navigate(`/test/${editingTestId}/select-sets`);
+
+  } catch (error) {
+    console.error('Failed to submit test:', error);
+    toast.error(isEditing ? 'Failed to update test' : 'Failed to create test');
   }
 };
 
@@ -284,7 +352,14 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
 
       {/* Tests Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTests.map((test) => {
+        {/* {filteredTests.map((test) => { */}
+          {tests
+  .filter(test =>
+    test.name.toLowerCase().includes(searchTerm.toLowerCase())
+    && (!filterType || test.examName === filterType)
+    && (!filterSubject || test.subject === filterSubject)
+  )
+  .map((test) => {
           // const isActive = new Date() >= new Date(test.startDate) && new Date() <= new Date(test.endDate);
           // const isUpcoming = new Date() < new Date(test.startDate);
           // const isExpired = new Date() > new Date(test.endDate);
@@ -298,9 +373,33 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
                 </div>
                 {canEditTest && (
                   <div className="flex space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
+                    {/* <button className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
+                      <Edit className="h-4 w-4" />
+                    </button> */}
+                    <button
+                      className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"
+                      onClick={() => {
+                        setEditingTestId(test._id);
+                        setIsEditing(true);
+                        fetchSubjects(); // Load exam/subject structure
+
+                        // Pre-fill form
+                        setFormData({
+                          name: test.name,
+                          examName: test.examName,
+                          subject: test.subject,
+                          difficulty: test.difficulty,
+                          duration: test.duration,
+                          examId: test.examId,
+                          subjectId: test.subjectId,
+                          allowedCenters: test.allowedCenters || [],
+                        });
+                        setShowCreateModal(true);
+                      }}
+                    >
                       <Edit className="h-4 w-4" />
                     </button>
+
                     <button onClick={() => handleDeleteTest(test._id)} className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -410,7 +509,7 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
             <h2 className="text-xl font-semibold mb-4">Create New Test</h2>
-            <form onSubmit={handleCreateTest} className="space-y-4 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSubmitTest} className="space-y-4 max-h-[80vh] overflow-y-auto">
               <input name="name" value={formData.name} onChange={handleInputChange} placeholder="name" className="input w-full" required />
               {/* <textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Description" className="input w-full" /> */}
               <div className="grid grid-cols-2 gap-4">
@@ -471,7 +570,7 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
 
                   }}
                   required
-                  disabled={!formData.examName}
+                  disabled={formData.examName == '' || !formData.examId} // Disable if no exam is selected
                   >
                   <option value="">Select Subject</option>
                   {exams.find(exam => exam._id === formData.examId)?.subjects.map((subject) => (
@@ -515,12 +614,23 @@ const [availableCenters, setAvailableCenters] = useState<{ _id: string, name: st
 </div>
 
               <div className="flex justify-end gap-4 pt-4 border-t">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowCreateModal(false);
+                    setEditingTestId(null);
+                    setIsEditing(false);
+                    resetForm();
+                  }
+                }
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                {/* <button type="submit" className="btn btn-primary">
                   Create Test
+                </button> */}
+                <button type="submit" className="btn btn-primary">
+                  {isEditing ? 'Update Test' : 'Create Test'}
                 </button>
+
               </div>
             </form>
           </div>
