@@ -261,7 +261,17 @@ const fetchTestQuestions = async (testId: string) => {
         {selectedQuestions.length === 0 ? (
           <p>No questions selected yet.</p>
         ) : (
+          
           <div className="space-y-4">
+            <div className="mt-6 flex justify-end">
+          <button
+            className="btn btn-primary"
+            disabled={selectedQuestions.length === 0}
+            onClick={handleAddToTest}
+          >
+            Add {selectedQuestions.length} Question(s) to Test
+          </button>
+        </div>
             {selectedQuestions.map((q) => (
               <div key={q._id} className="p-4 border rounded shadow-sm">
                 <div className="flex justify-between">
@@ -293,7 +303,7 @@ const fetchTestQuestions = async (testId: string) => {
           </div>
         )}
 
-        <div className="mt-6 flex justify-end">
+        {/* <div className="mt-6 flex justify-end">
           <button
             className="btn btn-primary"
             disabled={selectedQuestions.length === 0}
@@ -301,7 +311,7 @@ const fetchTestQuestions = async (testId: string) => {
           >
             Add {selectedQuestions.length} Question(s) to Test
           </button>
-        </div>
+        </div> */}
       </div>
 
       {/* MODAL */}
